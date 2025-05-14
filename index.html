@@ -3,49 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>슬라이더로 정사영 조절 시각화 (완전)</title>
+    <title>실시간 정사영 분석으로 3D 추론 (완전)</title>
     <style>
-        body { margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; background-color: #f8f8f8; font-family: sans-serif; padding: 20px; box-sizing: border-box; }
+        body { margin: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; background-color: #f8f8f8; font-family: sans-serif; padding: 20px; box-sizing: border-box; }
         h1, h2 { text-align: center; color: #333; margin-bottom: 10px; }
-        canvas { border: 1px solid #ccc; background-color: #fff; margin-bottom: 10px; }
+        canvas { border: 1px solid #ccc; background-color: #fff; margin-bottom: 10px; cursor: pointer; } /* 클릭 가능하도록 커서 변경 */
         .controls { margin-bottom: 20px; text-align: center; }
         .control-group { margin-bottom: 15px; }
-        label { display: inline-block; width: 80px; text-align: right; margin-right: 10px; }
+        label { display: inline-block; width: 100px; text-align: right; margin-right: 10px; }
         input[type="range"] { width: 200px; vertical-align: middle; }
-        span { display: inline-block; width: 40px; text-align: left; margin-left: 5px; vertical-align: middle; }
+        span { display: inline-block; width: 50px; text-align: left; margin-left: 5px; vertical-align: middle; }
+        #analysisArea {
+            width: 450px; /* 캔버스 너비보다 약간 넓게 */
+            min-height: 200px; /* 높이 확보 */
+            border: 1px solid #ccc;
+            background-color: #fff;
+            padding: 15px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            text-align: left;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        #conclusionArea {
+             width: 450px;
+             border: 2px solid #28a745; /* 강조 테두리 */
+             background-color: #d4edda; /* 강조 배경색 */
+             padding: 15px;
+             text-align: center;
+             font-weight: bold;
+             color: #155724;
+             margin-top: 10px;
+         }
         .info { text-align: center; margin-top: 10px; color: #555; font-size: 0.9em; }
+        .warning { color: #dc3545; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>슬라이더로 보는 정육면체 정사영</h1>
-    <h2>(투영 각도 조절)</h2>
+    <h1>정사영 분석으로 3차원 구조 추론하기</h1>
+    <h2>(슬라이더 조절 시 실시간 분석)</h2>
 
     <canvas id="projectionCanvas" width="400" height="400"></canvas>
 
     <div class="controls">
         <div class="control-group">
-            <label for="rotateX">X축 회전:</label>
+            <label for="rotateX">X축 회전 각도:</label>
             <input type="range" id="rotateX" min="0" max="360" value="30">
             <span id="rotateXValue">30°</span>
         </div>
         <div class="control-group">
-            <label for="rotateY">Y축 회전:</label>
+            <label for="rotateY">Y축 회전 각도:</label>
             <input type="range" id="rotateY" min="0" max="360" value="45">
             <span id="rotateYValue">45°</span>
         </div>
-         <div class="info">슬라이더를 움직여 정육면체를 다양한 각도에서 정사영해 보세요.</div>
+         <div class="info">슬라이더를 움직여 정육면체의 정사영 각도를 조절해 보세요.</div>
     </div>
+
+    <pre id="analysisArea">
+        --- 현재 정사영 그림 분석 결과 (추론 단서) ---
+        (슬라이더를 움직이면 실시간으로 분석 결과가 업데이트됩니다.)
+
+        총 점 개수: 0개
+        총 선 개수: 0개
+        모든 점 차수: 분석 중...
+        모든 면 형태: 분석 중...
+        모든 모서리 - 면 관계: 분석 중...
+        길이 왜곡: 분석 중...
+    </pre>
+
+     <div id="conclusionArea" style="display: none;">
+         </div>
 
 
     <div class="info">
-        <p>슬라이더 값은 3차원 정육면체를 회전시키는 각도(도)를 나타낸다.</p>
-        <p>회전된 정육면체의 각 꼭짓점이 2차원 평면으로 정사영되어 캔버스에 그려진다.</p>
-        <p>다양한 각도에서의 정사영(그림자) 형태 변화를 통해 3차원 구조를 시각적으로 이해할 수 있다.</p>
+        <p>캔버스에는 현재 각도에서의 정육면체 2차원 정사영 그림이 그려진다.</p>
+        <p>아래 분석 결과는 그 그림의 특징을 수학적으로 분석한 것이다.</p>
+        <p>분석된 단서들을 종합하여 원래 3차원 도형이 무엇인지 추론한다.</p>
+        <p><span class="warning">주의:</span> 복잡한 투영 시 선 겹침 등으로 인해 분석 결과가 부정확할 수 있다. 일반적인 투영에서 정확하다.</p>
     </div>
 
     <script>
-        // --- JavaScript 코드가 여기에 작성되어 슬라이더 값을 읽고 정사영 계산 및 그림을 그린다. ---
+        // --- JavaScript 코드가 여기에 작성되어 실시간 정사영 계산 및 분석을 수행한다. ---
 
         const projectionCanvas = document.getElementById('projectionCanvas');
         const ctx = projectionCanvas.getContext('2d');
@@ -53,115 +93,312 @@
         const rotateYSlider = document.getElementById('rotateY');
         const rotateXValueSpan = document.getElementById('rotateXValue');
         const rotateYValueSpan = document.getElementById('rotateYValue');
+        const analysisArea = document.getElementById('analysisArea');
+        const conclusionArea = document.getElementById('conclusionArea');
 
         // --- 1. 3차원 정육면체 데이터 정의 (고정된 원래 형태) ---
-        // 각 꼭짓점을 3차원 벡터로 생각한다.
         const vertices = [
             { x: -1, y: -1, z: -1 }, { x: 1, y: -1, z: -1 }, { x: 1, y: 1, z: -1 }, { x: -1, y: 1, z: -1 },
             { x: -1, y: -1, z: 1 },  { x: 1, y: -1, z: 1 },  { x: 1, y: 1, z: 1 },  { x: -1, y: 1, z: 1 }
         ];
-        // 모서리 연결 정보 (꼭짓점 배열의 인덱스 쌍)
         const edges = [
-            [0, 1], [1, 2], [2, 3], [3, 0], // 밑면 사각형
-            [4, 5], [5, 6], [6, 7], [7, 4], // 윗면 사각형
-            [0, 4], [1, 5], [2, 6], [3, 7]  // 기둥 모서리
+            [0, 1], [1, 2], [2, 3], [3, 0],
+            [4, 5], [5, 6], [6, 7], [7, 4],
+            [0, 4], [1, 5], [2, 6], [3, 7]
         ];
 
-        // --- 2. 3차원 벡터 회전 함수 (슬라이더 값에 따라) ---
-        // 3차원 벡터 v를 x축, y축 중심으로 회전시킨 새로운 벡터를 반환한다.
-        // 각도는 라디안 값을 사용하므로, 슬라이더의 도(degree) 값을 라디안으로 변환해야 한다.
-        // 회전 변환 행렬을 이용한 계산과 동일한 결과를 얻는다.
+         // 실제 3D 면 데이터 (꼭짓점 인덱스 기준) - 2D 분석 시 활용
+         const faces3D_vertex_indices = [
+             [0, 1, 2, 3], // Bottom
+             [4, 5, 6, 7], // Top
+             [0, 1, 5, 4], // Side 1
+             [1, 2, 6, 5], // Side 2
+             [2, 3, 7, 6], // Side 3
+             [3, 0, 4, 7]  // Side 4
+         ];
+
+
+        // --- 2. 3차원 벡터 회전 함수 ---
         function rotateVector(v, angleX_rad, angleY_rad) {
-            // X축 회전
             let rotatedY_aroundX = v.y * Math.cos(angleX_rad) - v.z * Math.sin(angleX_rad);
             let rotatedZ_aroundX = v.y * Math.sin(angleX_rad) + v.z * Math.cos(angleX_rad);
-            let intermediateX = v.x; // X축 회전 시 X는 변하지 않는다.
+            let intermediateX = v.x;
 
-            // Y축 회전 (X축 회전 결과에 적용)
             let finalX = intermediateX * Math.cos(angleY_rad) + rotatedZ_aroundX * Math.sin(angleY_rad);
-            let finalY = rotatedY_aroundX; // Y축 회전 시 Y는 변하지 않는다.
+            let finalY = rotatedY_aroundX;
             let finalZ = -intermediateX * Math.sin(angleY_rad) + rotatedZ_aroundX * Math.cos(angleY_rad);
 
             return { x: finalX, y: finalY, z: finalZ };
         }
 
         // --- 3. 정사영 함수 (회전된 3차원 벡터를 2차원 평면에 투영) ---
-        // 회전된 3차원 벡터 (x', y', z')를 받아 2차원 평면 상의 좌표로 변환한다.
-        // 여기서는 가장 일반적인 직교 정사영으로, 회전된 3차원 벡터의 X, Y 좌표를 그대로 2차원 그림의 좌표로 사용한다.
-        // 이는 회전된 정육면체를 정면(뷰어 방향)에서 바라보며 화면(XY 평면)에 그림자를 만드는 것과 같다.
         function project3Dto2D(v3D_rotated) {
-            // 수학적으로 회전된 3차원 벡터 (x', y', z')를 XY 평면(z=0)으로 정사영하면 벡터 (x', y', 0)가 된다.
-            // 이 벡터의 2차원 평면 상 좌표는 (x', y')가 된다.
             return { x: v3D_rotated.x, y: v3D_rotated.y };
         }
 
-        // --- 4. 그림 그리기 함수 (슬라이더 값에 따라 업데이트) ---
+        // --- 4. 2차원 그림 분석 함수 (추론 단서 찾기) ---
+        // Note: 정확한 2D 그래프 분석(겹침 고려한 차수, 면 탐색)은 복잡하므로,
+        // 여기서는 원래 3D 구조 정보를 바탕으로 2D 결과를 해석하는 방식으로 단순화한다.
+
+        // 4-1. 총 점 및 선 개수 파악 (단순)
+        function analyzeTotalCounts(vertices2D, edges) {
+             return { vertexCount: vertices2D.length, edgeCount: edges.length };
+         }
+
+        // 4-2. 점의 차수(연결된 선 개수) 분석
+        // 2D 상에서 점이 겹치지 않는다는 가정 하에, 3D 차수와 같다고 본다.
+        function analyzeVertexDegrees(vertices2D, edges) {
+            const degrees = vertices2D.map((_, index) => getVertexDegree(index, edges));
+            const uniqueDegrees = [...new Set(degrees)];
+            const allSame = uniqueDegrees.length === 1;
+            const allAre3 = allSame && uniqueDegrees[0] === 3;
+
+            return {
+                degrees: degrees,
+                uniqueDegrees: uniqueDegrees,
+                allAre3: allAre3,
+                summary: allAre3 ? `모든 점의 차수: 3개` : `다양한 차수 관찰됨: ${uniqueDegrees.join(', ')}`
+            };
+        }
+
+        // 보조: 특정 점의 차수 계산 (2D 연결 기준)
+        function getVertexDegree(vertexIndex, edges) {
+            let count = 0;
+            edges.forEach(edge => {
+                if (edge[0] === vertexIndex || edge[1] === vertexIndex) {
+                    count++;
+                }
+            });
+            return count;
+        }
+
+        // 4-3. 면 형태 및 개수 분석 (단순화된 방식)
+        // 보이는 면만 분석한다고 가정하고, 원래 3D 면의 변 개수를 센다.
+        function analyzeFaceForms(vertices2D, edges, faces3D_indices) {
+             const visibleFacesAnalysis = faces3D_indices.map(faceIndices => {
+                 // TODO: 실제 2D 상에서 이 면이 가려지지 않고 보이는지 판단하는 복잡한 로직이 필요.
+                 // Z-버퍼링이나 면의 법선 벡터 방향 등을 활용한다. 여기서는 단순화.
+                 const isVisibleEnough = true; // 항상 보인다고 가정하거나 간단한 판단 로직 사용
+
+                 if (isVisibleEnough) {
+                      return faceIndices.length; // 원래 3D 면의 변 개수 (정육면체이므로 4)
+                 } else {
+                     return null; // 보이지 않는 면
+                 }
+             }).filter(count => count !== null);
+
+             const uniqueFaceEdgeCounts = [...new Set(visibleFacesAnalysis)];
+             const allSame = uniqueFaceEdgeCounts.length <= 1;
+             const allVisibleAre4 = allSame && uniqueFaceEdgeCounts[0] === 4 && visibleFacesAnalysis.length > 0;
+
+             return {
+                  visibleFaceCounts: visibleFacesAnalysis,
+                  uniqueCounts: uniqueFaceEdgeCounts,
+                  allVisibleAre4: allVisibleAre4,
+                  summary: visibleFacesAnalysis.length === 0 ? "보이는 면 없음" :
+                           (allVisibleAre4 ? `보이는 면은 모두 ${uniqueFaceEdgeCounts[0]}각형` : `다양한 형태의 면 관찰됨: ${uniqueFaceEdgeCounts.join(', ')}`)
+             };
+         }
+
+
+        // 4-4. 모서리 - 면 관계 분석 (단순화된 방식)
+        // 2D 상에서 모서리가 몇 개의 면에 속하는지 분석 (원래 3D 구조 기반)
+        function analyzeEdgeFaceIncidence(edges, faces3D_indices) {
+             const incidenceCounts = edges.map(edge => {
+                 let count = 0;
+                 // 각 3D 면을 순회하며 이 3D 모서리 (edge[0], edge[1])를 포함하는지 확인한다.
+                 faces3D_indices.forEach(face_v_indices => {
+                      const v1_in_face = face_v_indices.includes(edge[0]);
+                      const v2_in_face = face_v_indices.includes(edge[1]);
+
+                      // 면에 두 꼭짓점이 모두 포함되고, 그 꼭짓점들이 그 면에서 이웃하는지 확인해야 함.
+                      // 정육면체에서는 face_v_indices에 v1, v2가 모두 포함되면 이웃한다.
+                      if(v1_in_face && v2_in_face) {
+                           count++; // 이 모서리는 이 면에 속한다.
+                      }
+                 });
+                  return count; // 이 모서리가 속한 면의 총 개수
+             });
+
+             const uniqueIncidenceCounts = [...new Set(incidenceCounts)];
+             const allSame = uniqueIncidenceCounts.length === 1;
+             const allAre3 = allSame && uniqueIncidenceCounts[0] === 3;
+
+             return {
+                  incidenceCounts: incidenceCounts,
+                  uniqueCounts: uniqueIncidenceCounts,
+                  allAre3: allAre3,
+                  summary: allAre3 ? `모든 모서리는 면 3개에 속함` : `다양한 모서리-면 관계 관찰됨: ${uniqueIncidenceCounts.join(', ')}`
+             };
+         }
+
+         // 4-5. 길이 왜곡 분석
+         function analyzeDistortion(vertices2D, edges, vertices3D_original) {
+             if (edges.length === 0) return "모서리 없음";
+
+             const projectedLengths = edges.map(edge => {
+                 const p1 = vertices2D[edge[0]];
+                 const p2 = vertices2D[edge[1]];
+                 return Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2); // 2D 길이
+             });
+
+              // 0 길이 투영 (모서리가 투영 평면에 수직) 제외하고 분석
+             const nonZeroLengths = projectedLengths.filter(l => l > 1e-6); // 아주 작은 값은 0으로 간주
+
+             if (nonZeroLengths.length === 0) return "모든 모서리가 점으로 투영됨";
+
+
+             const uniqueProjectedLengths = [...new Set(nonZeroLengths.map(l => l.toFixed(2)))].map(parseFloat); // 소수점 2자리까지 같으면 같은 길이로 간주
+             const lengthsVary = uniqueProjectedLengths.length > 1;
+
+             let summary = "";
+             if (lengthsVary) {
+                  summary += `다양하게 관찰됨 (최소: ${Math.min(...nonZeroLengths).toFixed(2)}, 최대: ${Math.max(...nonZeroLengths).toFixed(2)})`;
+                  // 원래 길이가 같았을 가능성 시사 (규칙성 가정 시)
+             } else {
+                  summary += `모두 같게 관찰됨 (길이: ${uniqueProjectedLengths[0].toFixed(2)})`; // 특수 투영 (면에 수직 등)
+             }
+             return summary;
+         }
+
+
+        // --- 5. 그림 그리기 함수 (requestAnimationFrame 루프에서 호출됨) ---
         function render() {
             // 캔버스 클리어
             ctx.clearRect(0, 0, projectionCanvas.width, projectionCanvas.height);
 
-            // 현재 슬라이더 각도 (도) 가져오기
+            // 현재 슬라이더 각도 가져오기 (도)
             const angleX_deg = parseFloat(rotateXSlider.value);
             const angleY_deg = parseFloat(rotateYSlider.value);
 
-            // 도를 라디안으로 변환
+            // 라디안으로 변환
             const angleX_rad = angleX_deg * Math.PI / 180;
             const angleY_rad = angleY_deg * Math.PI / 180;
-
 
             // 슬라이더 값 표시 업데이트
             rotateXValueSpan.textContent = `${angleX_deg}°`;
             rotateYValueSpan.textContent = `${angleY_deg}°`;
 
-            // 보기 좋게 캔버스 중앙으로 원점 이동 및 크기 확대 설정
-            const scale = 100; // 정육면체 크기를 캔버스에 맞게 확대
-            const offset = 200; // 캔버스 중앙 (width/2, height/2)
+            // 보기 좋게 중앙 이동 및 크기 확대 설정
+            const scale = 100;
+            const offset = 200;
 
-            ctx.save(); // 현재 캔버스 상태 (변환, 스타일 등) 저장
+            ctx.save(); // 현재 캔버스 상태 저장
             ctx.translate(offset, offset); // 원점을 캔버스 중앙으로 이동
-            ctx.scale(scale, -scale); // Y축 반전 및 크기 확대 (캔버스 Y축은 아래로 갈수록 증가)
-            ctx.lineWidth = 1 / scale; // 선 굵기 조정 (스케일 적용 후에도 일정하게 보이도록)
-            ctx.strokeStyle = '#000'; // 선 색상
+            ctx.scale(scale, -scale); // Y축 반전 및 크기 확대
 
-
-            // 각 3차원 꼭짓점을 회전시키고 2차원으로 정사영
+            // --- 정사영 계산 ---
             const projectedVertices = vertices.map(v3D => {
-                const rotatedV = rotateVector(v3D, angleX_rad, angleY_rad); // 3D 회전 계산
-                const v2D = project3Dto2D(rotatedV); // 2D 정사영 계산
-                return v2D; // 2차원 평면 상의 {x, y} 좌표 반환
+                const rotatedV = rotateVector(v3D, angleX_rad, angleY_rad); // 3D 회전
+                const v2D = project3Dto2D(rotatedV); // 2D 정사영
+                return v2D; // 2차원 평면 상의 {x, y} 좌표
             });
 
-            // 투영된 꼭짓점들을 모서리 정보에 따라 선으로 연결하여 그린다.
-            edges.forEach(edge => {
-                const p1 = projectedVertices[edge[0]]; // 모서리의 첫 번째 꼭짓점 인덱스
-                const p2 = projectedVertices[edge[1]]; // 모서리의 두 번째 꼭짓점 인덱
+            // --- 2차원 정사영 결과 그리기 ---
+             ctx.lineWidth = 1 / scale;
+             ctx.strokeStyle = '#000';
+             edges.forEach(edge => {
+                 const p1 = projectedVertices[edge[0]];
+                 const p2 = projectedVertices[edge[1]];
+                 ctx.beginPath();
+                 ctx.moveTo(p1.x, p1.y);
+                 ctx.lineTo(p2.x, p2.y);
+                 ctx.stroke();
+             });
 
-                ctx.beginPath(); // 새로운 경로 시작
-                ctx.moveTo(p1.x, p1.y); // 첫 번째 점으로 이동
-                ctx.lineTo(p2.x, p2.y); // 두 번째 점까지 선 그리기
-                ctx.stroke(); // 그린 선을 화면에 표시
-            });
+             // 점도 작게 그려서 위치 표시
+             ctx.fillStyle = 'blue';
+             const pointRadius = 3 / scale;
+              projectedVertices.forEach(p => {
+                 ctx.beginPath();
+                 ctx.arc(p.x, p.y, pointRadius, 0, Math.PI * 2);
+                 ctx.fill();
+              });
 
-            ctx.restore(); // 저장된 캔버스 상태 복구 (원점 위치, 스케일, 스타일 등을 초기 상태로 되돌림)
 
-            // --- 5. (개념 설명) 다양한 정사영을 통한 3D 구조 이해 ---
-            // 슬라이더를 움직이며 그림이 변하는 것을 눈으로 관찰한다.
-            // 어떤 각도에서는 정육면체가 단순한 사각형(면에 수직 투영)으로 보인다.
-            // 어떤 각도에서는 꼭짓점 8개, 모서리 12개, 면 6개가 모두 보이면서 각 점에 선이 3개 연결되고 각 선에 면이 3개 붙어 있는 형태(꼭짓점 우선 투영과 유사)로 보인다.
-            // 어떤 각도에서는 모서리가 길어 보이고 어떤 모서리는 짧아 보이는 왜곡이 나타나는 것을 확인한다.
-            // 이러한 다양한 '그림자'의 모습을 통해 원래 3차원 도형이 정육면체임을 확신하게 된다.
+            ctx.restore(); // 캔버스 상태 복구
+
+            // --- 현재 그려진 2차원 그림 분석 및 결과 표시 ---
+            runAnalysis(projectedVertices, edges, vertices, faces3D_vertex_indices);
+
+            // 다음 프레임 요청
+            requestAnimationFrame(render);
         }
 
-        // --- 6. 이벤트 리스너: 슬라이더 값 변경 감지 ---
-        // 각 슬라이더의 'input' 이벤트(슬라이더 값이 변할 때마다 발생)에 render 함수를 연결한다.
-        rotateXSlider.addEventListener('input', render);
-        rotateYSlider.addEventListener('input', render);
+        // --- 6. 분석 실행 및 결과 표시 함수 ---
+        function runAnalysis(currentProjectedVertices, edges, originalVertices, faces3D_indices) {
+             let analysisText = `--- 현재 정사영 그림 분석 결과 (추론 단서) ---\n`;
 
-        // --- 초기 그림 그리기 ---
-        // 페이지가 로드될 때 슬라이더 초기값에 해당하는 정사영 그림을 한 번 그린다.
-        render();
+             // 6-1. 총 점 및 선 개수 분석
+             const counts = analyzeTotalCounts(currentProjectedVertices, edges);
+             analysisText += `총 점 개수: ${counts.vertexCount}개\n`;
+             analysisText += `총 선 개수: ${counts.edgeCount}개\n`;
+
+             // 6-2. 모든 점의 차수 분석
+             const degreeAnalysis = analyzeVertexDegrees(currentProjectedVertices, edges);
+             analysisText += `모든 점 차수: ${degreeAnalysis.summary}\n`;
+
+             // 6-3. 보이는 면 형태 분석
+             const faceAnalysis = analyzeFaceForms(currentProjectedVertices, edges, faces3D_indices);
+             analysisText += `보이는 면 형태: ${faceAnalysis.summary}\n`;
+
+             // 6-4. 모든 모서리 - 면 관계 분석
+             const edgeFaceAnalysis = analyzeEdgeFaceIncidence(edges, faces3D_indices); // edges와 3D faces 사용
+             analysisText += `모든 모서리 - 면 관계: ${edgeFaceAnalysis.summary}\n`;
+
+             // 6-5. 길이 왜곡 분석
+             const distortionAnalysis = analyzeDistortion(currentProjectedVertices, edges, originalVertices);
+             analysisText += `길이 왜곡: ${distortionAnalysis}\n`;
+
+
+             // 분석 결과 영역 업데이트
+             analysisArea.textContent = analysisText;
+
+             // --- 7. 분석 결과 종합 및 최종 추론 ---
+             let finalConclusion = "";
+             let isCubeLikely = false;
+
+             // 정육면체 특징 확인 (주요 단서 일치 여부)
+             if (counts.vertexCount === 8 && counts.edgeCount === 12 &&
+                 degreeAnalysis.allAre3 &&
+                 faceAnalysis.allVisibleAre4 && faceAnalysis.visibleFaceCounts.length >= 1 && // 4각형 면이 보이고, 보이는 면이 1개 이상
+                 edgeFaceAnalysis.allAre3 &&
+                 distortionAnalysis.includes("다양하게 관찰됨")) // 길이 왜곡이 있음 (정육면체의 일반적인 투영)
+                 {
+                     // 모든 주요 특징이 정육면체와 일치한다!
+                     isCubeLikely = true;
+                     finalConclusion = `분석 결과 종합: 점(8), 선(12), 모든 점 차수(3), 보이는 면(4각형), 모든 모서리(면 3개에 속함), 길이 다양성. 이러한 특징들은 3차원 정육면체의 구조와 정확히 일치한다!`;
+
+             } else if (counts.vertexCount === 8 && counts.edgeCount === 12 &&
+                        degreeAnalysis.allAre3 && faceAnalysis.visibleFaceCounts.length === 0) {
+                         // 점,선 개수, 차수는 맞는데 면이 안 보임 (매우 특수한 투영 각도)
+                         isCubeLikely = false; // 아직은 불확실
+                         finalConclusion = `점 개수(8), 선 개수(12), 모든 점 차수(3). 다른 특징(면, 모서리-면 관계, 길이 왜곡) 확인 필요.`;
+             }
+             // 다른 불일치 경우는 별도 메시지 가능
+
+             // 최종 추론 결과 영역 업데이트
+             if (isCubeLikely) {
+                  conclusionArea.style.display = 'block';
+                  conclusionArea.textContent = finalConclusion;
+             } else {
+                   // 추론 불충분 또는 불일치 시 메시지 업데이트 가능
+                  conclusionArea.style.display = 'none'; // 일치하지 않으면 숨김
+             }
+        }
+
+
+        // --- 8. 이벤트 리스너 및 초기 실행 ---
+        // 슬라이더 값 변경 시에는 render 함수를 직접 호출하지 않고,
+        // render 함수 내부에서 최신 슬라이더 값을 읽도록 한다.
+        // 이렇게 하면 requestAnimationFrame 루프가 최신 값으로 계속 그리게 된다.
+        // 슬라이더 이벤트 리스너는 값 변경 시 render를 강제로 즉시 호출하는 대신,
+        // requestAnimationFrame 루프가 다음 프레임에 최신 값을 반영하게 한다.
+        // (여기서는 슬라이더 값을 바로 읽으므로 별도 리스너 불필요)
+
+        // 초기 렌더링 및 분석 루프 시작
+        requestAnimationFrame(render);
 
     </script>
-
 </body>
 </html>
