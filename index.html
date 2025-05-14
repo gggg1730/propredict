@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>슬라이더로 정사영 조절 시각화 (완전)</title>
+    <style>
+        body { margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; background-color: #f8f8f8; font-family: sans-serif; padding: 20px; box-sizing: border-box; }
+        h1, h2 { text-align: center; color: #333; margin-bottom: 10px; }
+        canvas { border: 1px solid #ccc; background-color: #fff; margin-bottom: 10px; }
+        .controls { margin-bottom: 20px; text-align: center; }
+        .control-group { margin-bottom: 15px; }
+        label { display: inline-block; width: 80px; text-align: right; margin-right: 10px; }
+        input[type="range"] { width: 200px; vertical-align: middle; }
+        span { display: inline-block; width: 40px; text-align: left; margin-left: 5px; vertical-align: middle; }
+        .info { text-align: center; margin-top: 10px; color: #555; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+    <h1>슬라이더로 보는 정육면체 정사영</h1>
+    <h2>(투영 각도 조절)</h2>
+
+    <canvas id="projectionCanvas" width="400" height="400"></canvas>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="rotateX">X축 회전:</label>
+            <input type="range" id="rotateX" min="0" max="360" value="30">
+            <span id="rotateXValue">30°</span>
+        </div>
+        <div class="control-group">
+            <label for="rotateY">Y축 회전:</label>
+            <input type="range" id="rotateY" min="0" max="360" value="45">
+            <span id="rotateYValue">45°</span>
+        </div>
+         <div class="info">슬라이더를 움직여 정육면체를 다양한 각도에서 정사영해 보세요.</div>
+    </div>
+
+
+    <div class="info">
+        <p>슬라이더 값은 3차원 정육면체를 회전시키는 각도(도)를 나타낸다.</p>
+        <p>회전된 정육면체의 각 꼭짓점이 2차원 평면으로 정사영되어 캔버스에 그려진다.</p>
+        <p>다양한 각도에서의 정사영(그림자) 형태 변화를 통해 3차원 구조를 시각적으로 이해할 수 있다.</p>
+    </div>
+
+    <script>
+        // --- JavaScript 코드가 여기에 작성되어 슬라이더 값을 읽고 정사영 계산 및 그림을 그린다. ---
+
+        const projectionCanvas = document.getElementById('projectionCanvas');
+        const ctx = projectionCanvas.getContext('2d');
+        const rotateXSlider = document.getElementById('rotateX');
+        const rotateYSlider = document.getElementById('rotateY');
+        const rotateXValueSpan = document.getElementById('rotateXValue');
+        const rotateYValueSpan = document.getElementById('rotateYValue');
+
+        // --- 1. 3차원 정육면체 데이터 정의 (고정된 원래 형태) ---
+        // 각 꼭짓점을 3차원 벡터로 생각한다.
+        const vertices = [
+            { x: -1, y: -1, z: -1 }, { x: 1, y: -1, z: -1 }, { x: 1, y: 1, z: -1 }, { x: -1, y: 1, z: -1 },
+            { x: -1, y: -1, z: 1 },  { x: 1, y: -1, z: 1 },  { x: 1, y: 1, z: 1 },  { x: -1, y: 1, z: 1 }
+        ];
+        // 모서리 연결 정보 (꼭짓점 배열의 인덱스 쌍)
+        const edges = [
+            [0, 1], [1, 2], [2, 3], [3, 0], // 밑면 사각형
+            [4, 5], [5, 6], [6, 7], [7, 4], // 윗면 사각형
+            [0, 4], [1, 5], [2, 6], [3, 7]  // 기둥 모서리
+        ];
+
+        // --- 2. 3차원 벡터 회전 함수 (슬라이더 값에 따라) ---
+        // 3차원 벡터 v를 x축, y축 중심으로 회전시킨 새로운 벡터를 반환한다.
+        // 각도는 라디안 값을 사용하므로, 슬라이더의 도(degree) 값을 라디안으로 변환해야 한다.
+        // 회전 변환 행렬을 이용한 계산과 동일한 결과를 얻는다.
+        function rotateVector(v, angleX_rad, angleY_rad) {
+            // X축 회전
+            let rotatedY_aroundX = v.y * Math.cos(angleX_rad) - v.z * Math.sin(angleX_rad);
+            let rotatedZ_aroundX = v.y * Math.sin(angleX_rad) + v.z * Math.cos(angleX_rad);
+            let intermediateX = v.x; // X축 회전 시 X는 변하지 않는다.
+
+            // Y축 회전 (X축 회전 결과에 적용)
+            let finalX = intermediateX * Math.cos(angleY_rad) + rotatedZ_aroundX * Math.sin(angleY_rad);
+            let finalY = rotatedY_aroundX; // Y축 회전 시 Y는 변하지 않는다.
+            let finalZ = -intermediateX * Math.sin(angleY_rad) + rotatedZ_aroundX * Math.cos(angleY_rad);
+
+            return { x: finalX, y: finalY, z: finalZ };
+        }
+
+        // --- 3. 정사영 함수 (회전된 3차원 벡터를 2차원 평면에 투영) ---
+        // 회전된 3차원 벡터 (x', y', z')를 받아 2차원 평면 상의 좌표로 변환한다.
+        // 여기서는 가장 일반적인 직교 정사영으로, 회전된 3차원 벡터의 X, Y 좌표를 그대로 2차원 그림의 좌표로 사용한다.
+        // 이는 회전된 정육면체를 정면(뷰어 방향)에서 바라보며 화면(XY 평면)에 그림자를 만드는 것과 같다.
+        function project3Dto2D(v3D_rotated) {
+            // 수학적으로 회전된 3차원 벡터 (x', y', z')를 XY 평면(z=0)으로 정사영하면 벡터 (x', y', 0)가 된다.
+            // 이 벡터의 2차원 평면 상 좌표는 (x', y')가 된다.
+            return { x: v3D_rotated.x, y: v3D_rotated.y };
+        }
+
+        // --- 4. 그림 그리기 함수 (슬라이더 값에 따라 업데이트) ---
+        function render() {
+            // 캔버스 클리어
+            ctx.clearRect(0, 0, projectionCanvas.width, projectionCanvas.height);
+
+            // 현재 슬라이더 각도 (도) 가져오기
+            const angleX_deg = parseFloat(rotateXSlider.value);
+            const angleY_deg = parseFloat(rotateYSlider.value);
+
+            // 도를 라디안으로 변환
+            const angleX_rad = angleX_deg * Math.PI / 180;
+            const angleY_rad = angleY_deg * Math.PI / 180;
+
+
+            // 슬라이더 값 표시 업데이트
+            rotateXValueSpan.textContent = `${angleX_deg}°`;
+            rotateYValueSpan.textContent = `${angleY_deg}°`;
+
+            // 보기 좋게 캔버스 중앙으로 원점 이동 및 크기 확대 설정
+            const scale = 100; // 정육면체 크기를 캔버스에 맞게 확대
+            const offset = 200; // 캔버스 중앙 (width/2, height/2)
+
+            ctx.save(); // 현재 캔버스 상태 (변환, 스타일 등) 저장
+            ctx.translate(offset, offset); // 원점을 캔버스 중앙으로 이동
+            ctx.scale(scale, -scale); // Y축 반전 및 크기 확대 (캔버스 Y축은 아래로 갈수록 증가)
+            ctx.lineWidth = 1 / scale; // 선 굵기 조정 (스케일 적용 후에도 일정하게 보이도록)
+            ctx.strokeStyle = '#000'; // 선 색상
+
+
+            // 각 3차원 꼭짓점을 회전시키고 2차원으로 정사영
+            const projectedVertices = vertices.map(v3D => {
+                const rotatedV = rotateVector(v3D, angleX_rad, angleY_rad); // 3D 회전 계산
+                const v2D = project3Dto2D(rotatedV); // 2D 정사영 계산
+                return v2D; // 2차원 평면 상의 {x, y} 좌표 반환
+            });
+
+            // 투영된 꼭짓점들을 모서리 정보에 따라 선으로 연결하여 그린다.
+            edges.forEach(edge => {
+                const p1 = projectedVertices[edge[0]]; // 모서리의 첫 번째 꼭짓점 인덱스
+                const p2 = projectedVertices[edge[1]]; // 모서리의 두 번째 꼭짓점 인덱
+
+                ctx.beginPath(); // 새로운 경로 시작
+                ctx.moveTo(p1.x, p1.y); // 첫 번째 점으로 이동
+                ctx.lineTo(p2.x, p2.y); // 두 번째 점까지 선 그리기
+                ctx.stroke(); // 그린 선을 화면에 표시
+            });
+
+            ctx.restore(); // 저장된 캔버스 상태 복구 (원점 위치, 스케일, 스타일 등을 초기 상태로 되돌림)
+
+            // --- 5. (개념 설명) 다양한 정사영을 통한 3D 구조 이해 ---
+            // 슬라이더를 움직이며 그림이 변하는 것을 눈으로 관찰한다.
+            // 어떤 각도에서는 정육면체가 단순한 사각형(면에 수직 투영)으로 보인다.
+            // 어떤 각도에서는 꼭짓점 8개, 모서리 12개, 면 6개가 모두 보이면서 각 점에 선이 3개 연결되고 각 선에 면이 3개 붙어 있는 형태(꼭짓점 우선 투영과 유사)로 보인다.
+            // 어떤 각도에서는 모서리가 길어 보이고 어떤 모서리는 짧아 보이는 왜곡이 나타나는 것을 확인한다.
+            // 이러한 다양한 '그림자'의 모습을 통해 원래 3차원 도형이 정육면체임을 확신하게 된다.
+        }
+
+        // --- 6. 이벤트 리스너: 슬라이더 값 변경 감지 ---
+        // 각 슬라이더의 'input' 이벤트(슬라이더 값이 변할 때마다 발생)에 render 함수를 연결한다.
+        rotateXSlider.addEventListener('input', render);
+        rotateYSlider.addEventListener('input', render);
+
+        // --- 초기 그림 그리기 ---
+        // 페이지가 로드될 때 슬라이더 초기값에 해당하는 정사영 그림을 한 번 그린다.
+        render();
+
+    </script>
+
+</body>
+</html>
